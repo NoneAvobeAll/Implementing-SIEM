@@ -241,5 +241,3 @@ Your SIEM system is now fully deployed and operational. You can monitor logs, de
 
 - [Wazuh Documentation](https://documentation.wazuh.com)
 - [OpenSearch Documentation](https://opensearch.org/docs/)
-
-Feel free to adapt this guide based on your environment and additional requirements.
