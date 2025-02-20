@@ -38,224 +38,208 @@ For this guide, we’ll use **Wazuh + ELK Stack** (free, open-source, and powerf
 
 For **large-scale deployment (100+ servers)**, consider **distributed architecture** with separate **Wazuh Manager, Elasticsearch, Kibana, and Filebeat servers**.
 
----
-
-## **🔵 3. Deployment Options**
-1️⃣ **On-Premise Deployment** – Installed on your own servers. Best for full control.  
-2️⃣ **Cloud Deployment** – Install on **AWS, Azure, GCP** (Use managed Elasticsearch).  
-3️⃣ **Hybrid Deployment** – Combination of cloud and on-premise for flexibility.  
-
-For this guide, we’ll use an **on-premise setup** on **Ubuntu 22.04**.
+### Wazuh Agent (For Each Monitored Server)
+- **OS:** Linux (Ubuntu, CentOS, RHEL) or Windows Server  
+- **CPU:** 1 core  
+- **RAM:** 512MB  
+- **Disk:** 2GB  
+- **Network:** Stable connection to the SIEM server
 
 ---
 
-## **🔴 4. Installing SIEM (Wazuh + ELK Stack)**
-We will install:
-✅ **Wazuh Server** – Core security analysis.  
-✅ **Elasticsearch** – Stores and indexes logs.  
-✅ **Kibana** – Visualizes logs and security alerts.  
-✅ **Filebeat** – Collects and forwards logs.
+## 3. Deployment Options
+
+- **On-Premise:** Full control on your own hardware (this guide uses an on-premise setup).
+- **Cloud:** Deploy on AWS, Azure, or GCP using managed services.
+- **Hybrid:** A combination of on-premise and cloud deployments.
 
 ---
 
-### **🔵 A. Install Wazuh Server**
-1️⃣ **Update System & Install Dependencies**
-```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install curl apt-transport-https unzip -y
-```
+## 4. Installation Steps
 
-2️⃣ **Add Wazuh Repository & Install**
-```bash
-curl -sO https://packages.wazuh.com/key/GPG-KEY-WAZUH
-sudo apt-key add GPG-KEY-WAZUH
-echo "deb https://packages.wazuh.com/4.x/apt/ stable main" | sudo tee /etc/apt/sources.list.d/wazuh.list
-sudo apt update
-sudo apt install wazuh-manager -y
-```
+### A. Install Wazuh Server
 
-3️⃣ **Start Wazuh Manager**
-```bash
-sudo systemctl enable wazuh-manager
-sudo systemctl start wazuh-manager
-```
+1. **Update and Install Dependencies**
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   sudo apt install curl apt-transport-https unzip -y
+   ```
 
----
+2. **Add the Wazuh Repository and Install Wazuh Manager**
+   ```bash
+   curl -sO https://packages.wazuh.com/key/GPG-KEY-WAZUH
+   sudo apt-key add GPG-KEY-WAZUH
+   echo "deb https://packages.wazuh.com/4.x/apt/ stable main" | sudo tee /etc/apt/sources.list.d/wazuh.list
+   sudo apt update
+   sudo apt install wazuh-manager -y
+   ```
 
-### **🔵 B. Install Elasticsearch (Log Storage)**
-1️⃣ **Install OpenSearch (Elasticsearch Alternative)**
-```bash
-wget -qO - https://artifacts.opensearch.org/packages/2.x/opensearch-keyring.asc | sudo gpg --dearmor -o /usr/share/keyrings/opensearch-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/opensearch-keyring.gpg] https://artifacts.opensearch.org/packages/2.x/apt stable main" | sudo tee /etc/apt/sources.list.d/opensearch.list
-sudo apt update && sudo apt install opensearch -y
-```
-
-2️⃣ **Configure OpenSearch**
-```bash
-sudo nano /etc/opensearch/opensearch.yml
-```
-Modify:
-```yaml
-network.host: 0.0.0.0
-cluster.name: wazuh-cluster
-node.name: node-1
-```
-
-3️⃣ **Start and Enable OpenSearch**
-```bash
-sudo systemctl enable opensearch
-sudo systemctl start opensearch
-```
+3. **Start Wazuh Manager**
+   ```bash
+   sudo systemctl enable wazuh-manager
+   sudo systemctl start wazuh-manager
+   ```
 
 ---
 
-### **🔵 C. Install Kibana (Dashboard & Visualization)**
-1️⃣ **Install Kibana**
-```bash
-sudo apt install opensearch-dashboards -y
-```
+### B. Install OpenSearch (Log Storage)
 
-2️⃣ **Configure Kibana**
-```bash
-sudo nano /etc/opensearch-dashboards/opensearch_dashboards.yml
-```
-Modify:
-```yaml
-server.host: "0.0.0.0"
-elasticsearch.hosts: ["http://localhost:9200"]
-```
+1. **Install OpenSearch**
+   ```bash
+   wget -qO - https://artifacts.opensearch.org/packages/2.x/opensearch-keyring.asc | sudo gpg --dearmor -o /usr/share/keyrings/opensearch-keyring.gpg
+   echo "deb [signed-by=/usr/share/keyrings/opensearch-keyring.gpg] https://artifacts.opensearch.org/packages/2.x/apt stable main" | sudo tee /etc/apt/sources.list.d/opensearch.list
+   sudo apt update && sudo apt install opensearch -y
+   ```
 
-3️⃣ **Start Kibana**
-```bash
-sudo systemctl enable opensearch-dashboards
-sudo systemctl start opensearch-dashboards
-```
+2. **Configure OpenSearch**  
+   Edit `/etc/opensearch/opensearch.yml` and add/modify:
+   ```yaml
+   network.host: 0.0.0.0
+   cluster.name: wazuh-cluster
+   node.name: node-1
+   ```
 
----
-
-### **🔵 D. Install Filebeat (Log Forwarding)**
-1️⃣ **Install Filebeat**
-```bash
-sudo apt install filebeat -y
-```
-
-2️⃣ **Enable Wazuh Module**
-```bash
-sudo filebeat modules enable wazuh
-```
-
-3️⃣ **Configure Filebeat**
-```bash
-sudo nano /etc/filebeat/filebeat.yml
-```
-Modify:
-```yaml
-output.elasticsearch:
-  hosts: ["http://localhost:9200"]
-setup.kibana:
-  host: "http://localhost:5601"
-```
-
-4️⃣ **Start Filebeat**
-```bash
-sudo systemctl enable filebeat
-sudo systemctl start filebeat
-```
+3. **Start OpenSearch**
+   ```bash
+   sudo systemctl enable opensearch
+   sudo systemctl start opensearch
+   ```
 
 ---
 
-## **🟢 5. Deploy Wazuh Agents**
-To monitor servers, install the **Wazuh agent** on each system.
+### C. Install OpenSearch Dashboards (Visualization)
 
-### **A. Install Wazuh Agent on Linux**
-```bash
-curl -sO https://packages.wazuh.com/4.x/apt/wazuh-agent.deb
-sudo dpkg -i wazuh-agent.deb
-```
-Modify the config:
-```bash
-sudo nano /var/ossec/etc/ossec.conf
-```
-Set:
-```xml
-<client>
-  <server>
-    <address>WAZUH_SERVER_IP</address>
-  </server>
-</client>
-```
-Start Agent:
-```bash
-sudo systemctl enable wazuh-agent
-sudo systemctl start wazuh-agent
-```
+1. **Install Dashboards**
+   ```bash
+   sudo apt install opensearch-dashboards -y
+   ```
 
-### **B. Install Wazuh Agent on Windows**
-1️⃣ Download **Wazuh Agent**:  
-👉 [https://packages.wazuh.com/4.x/windows/wazuh-agent.msi](https://packages.wazuh.com/4.x/windows/wazuh-agent.msi)  
+2. **Configure Dashboards**  
+   Edit `/etc/opensearch-dashboards/opensearch_dashboards.yml` and add/modify:
+   ```yaml
+   server.host: "0.0.0.0"
+   elasticsearch.hosts: ["http://localhost:9200"]
+   ```
 
-2️⃣ Install via PowerShell:
-```powershell
-msiexec.exe /i wazuh-agent.msi /quiet WAZUH_MANAGER="WAZUH_SERVER_IP"
-```
-
-3️⃣ Start Agent:
-```powershell
-net start WazuhSvc
-```
+3. **Start Dashboards**
+   ```bash
+   sudo systemctl enable opensearch-dashboards
+   sudo systemctl start opensearch-dashboards
+   ```
 
 ---
 
-## **🔴 6. Verify & Monitor**
-1️⃣ **Access Kibana**  
-   - Open: `http://WAZUH_SERVER_IP:5601`  
-   - Navigate to **Security Events**  
-   - Check logs & alerts.  
+### D. Install Filebeat (Log Forwarding)
 
-2️⃣ **Check Wazuh Agent Status**
-```bash
-/var/ossec/bin/agent_control -l
-```
+1. **Install Filebeat**
+   ```bash
+   sudo apt install filebeat -y
+   ```
 
-3️⃣ **Generate Test Log**
-```bash
-logger "Test SIEM log entry"
-```
-Check Kibana for logs.
+2. **Enable the Wazuh Module**
+   ```bash
+   sudo filebeat modules enable wazuh
+   ```
 
----
+3. **Configure Filebeat**  
+   Edit `/etc/filebeat/filebeat.yml` and set:
+   ```yaml
+   output.elasticsearch:
+     hosts: ["http://localhost:9200"]
+   setup.kibana:
+     host: "http://localhost:5601"
+   ```
 
-## **🟢 7. Configure SIEM Rules & Alerts**
-1️⃣ **Enable Security Rules in Wazuh**
-```bash
-sudo nano /var/ossec/etc/ossec.conf
-```
-Modify:
-```xml
-<ruleset>
-  <include>rules_config.xml</include>
-</ruleset>
-```
-
-2️⃣ **Configure Email Alerts**
-```bash
-sudo nano /var/ossec/etc/ossec.conf
-```
-Set:
-```xml
-<global>
-  <email_notification>yes</email_notification>
-  <email_to>security@yourcompany.com</email_to>
-</global>
-```
-
-3️⃣ **Restart Wazuh**
-```bash
-sudo systemctl restart wazuh-manager
-```
+4. **Start Filebeat**
+   ```bash
+   sudo systemctl enable filebeat
+   sudo systemctl start filebeat
+   ```
 
 ---
 
-## **✅ END**
-🎉 Your **SIEM system is now fully operational!** 🚀 You can now **monitor logs, detect threats, and ensure compliance**.
+## 5. Deploy and Connect Wazuh Agents
 
+### A. Linux Agent Installation
+
+1. **Download and Install the Agent**
+   ```bash
+   curl -sO https://packages.wazuh.com/4.x/apt/wazuh-agent.deb
+   sudo dpkg -i wazuh-agent.deb
+   ```
+- [Read official Guide For Linux Agent](https://documentation.wazuh.com/current/installation-guide/wazuh-agent/wazuh-agent-package-linux.html)
+
+2. **Configure the Agent**  
+   Edit `/var/ossec/etc/ossec.conf` and configure the server address:
+   ```xml
+   <client>
+     <server>
+       <address>WAZUH_SERVER_IP</address>
+     </server>
+   </client>
+   ```
+   Replace `WAZUH_SERVER_IP` with the IP address of your SIEM server.
+
+3. **Start the Agent**
+   ```bash
+   sudo systemctl enable wazuh-agent
+   sudo systemctl start wazuh-agent
+   ```
+
+- [Deployement Variable For Linux](https://documentation.wazuh.com/current/user-manual/agent/agent-enrollment/deployment-variables/deployment-variables-linux.html)
+
+### B. Windows Agent Installation
+
+1. **Download the Wazuh Agent**  
+   [Download Wazuh Agent MSI](https://packages.wazuh.com/4.x/windows/wazuh-agent.msi)
+
+2. **Install the Agent via PowerShell**
+   ```powershell
+   msiexec.exe /i wazuh-agent.msi /quiet WAZUH_MANAGER="WAZUH_SERVER_IP"
+   ```
+   Replace `WAZUH_SERVER_IP` with the IP address of your SIEM server.
+
+2.1 **Configure with gui**
+    ![image](https://github.com/user-attachments/assets/446a0940-1e97-4bf3-b518-1c17a2a1e09d)
+
+4. **Start the Agent Service**
+   ```powershell
+   net start WazuhSvc
+   ```
+- [Read Official Guide for Windows Agent](https://documentation.wazuh.com/current/installation-guide/wazuh-agent/wazuh-agent-package-windows.html)
+- [Deployement Variables for Windows](https://documentation.wazuh.com/current/user-manual/agent/agent-enrollment/deployment-variables/deployment-variables-windows.html)
+---
+
+## 6. Verifying Deployment and Accessing the SIEM Dashboard
+
+1. **Access OpenSearch Dashboards:**  
+   Open your browser and navigate to:
+   ```
+   http://<WAZUH_SERVER_IP>:5601
+   ```
+   This dashboard lets you view security events, logs, and alerts.
+
+2. **Test the Setup:**  
+   Generate a test log entry on the server:
+   ```bash
+   logger "Test SIEM log entry"
+   ```
+   Then, verify the log appears in the OpenSearch Dashboards.
+
+3. **Check Agent Connectivity:**  
+   On the SIEM server, run:
+   ```bash
+   /var/ossec/bin/agent_control -l
+   ```
+   This command lists connected agents to ensure they’re communicating properly with the server.
+
+---
+
+## 7. Conclusion
+
+Your SIEM system is now fully deployed and operational. You can monitor logs, detect threats, and ensure compliance. For further customizations—such as adding custom rules or email alerts—refer to the official documentation:
+
+- [Wazuh Documentation](https://documentation.wazuh.com)
+- [OpenSearch Documentation](https://opensearch.org/docs/)
+
+Feel free to adapt this guide based on your environment and additional requirements.
