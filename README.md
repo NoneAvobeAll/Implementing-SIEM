@@ -1,4 +1,3 @@
-# Implementing-SIEM
 # **Complete Guide to Implementing SIEM on Your Servers**  
 
 Procedure to set up **SIEM (Security Information and Event Management)** on your servers, including **requirements, installation, configuration, and monitoring**.  
